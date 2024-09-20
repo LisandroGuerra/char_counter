@@ -1,0 +1,47 @@
+# Ignorar arquivos de virtualenv
+venv/
+.venv/
+env/
+.env/
+
+# Ignorar arquivos de compilação do Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Ignorar arquivos de configuração locais
+*.env
+*.local
+
+# Ignorar configurações de IDE
+.vscode/
+.idea/
+
+# Ignorar arquivos de migração (opcional, se não forem necessários no build da imagem)
+migrations/
+
+# Ignorar arquivos de banco de dados SQLite
+*.db
+
+# Ignorar logs
+*.log
+*.txt
+
+# Ignorar arquivos de cache
+*.cache
+*.mo
+*.pot
+
+# Ignorar arquivos de static e media (se forem gerados dinamicamente durante o build)
+staticfiles/
+media/
+
+# Ignorar arquivos de testes (se não forem necessários no build)
+tests/
+
+# Ignorar arquivos de controle de versão
+.git/
+.hg/
+.svn/
+.gitignore

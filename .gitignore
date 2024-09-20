@@ -1,0 +1,65 @@
+# Ambiente virtual
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+.env
+
+# Arquivos do Python
+*.py[cod]
+__pycache__/
+*.so
+*.pyd
+*.pyc
+
+# Arquivos de log
+*.log
+*.txt
+
+# Configurações locais e de ambiente
+.env
+*.env
+.env.*
+*.local
+settings_local.py
+
+# Arquivos de banco de dados
+*.sqlite3
+*.db
+
+# Diretórios de static e media gerados automaticamente
+/static/
+/media/
+
+# Diretórios de migrações (opcional, se não quiser versionar as migrações)
+migrations/
+
+# Ignorar arquivos de cache
+*.mo
+*.pot
+
+# Arquivos gerados por IDEs e editores
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Arquivos de controle de versão do sistema
+.DS_Store
+Thumbs.db
+
+# Dependências instaladas (se não estiver utilizando um gerenciador como o Poetry ou Pipenv)
+pip-wheel-metadata/
+pip-log.txt
+
+# Diretórios de testes e cobertura de código (opcional)
+htmlcov/
+.tox/
+.coverage
+coverage.xml
+*.cover
+*.py,cover
+
+# Arquivos do Docker (se forem gerados localmente)
+docker-compose.override.yml

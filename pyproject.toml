@@ -1,0 +1,19 @@
+[project]
+name = "char-counter"
+version = "0.1.0"
+description = "Character counter for PDF and Image files"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.1.1",
+    "gunicorn>=23.0.0",
+    "pdfplumber>=0.11.4",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.3",
+    "pytest-django>=4.9.0",
+    "ruff>=0.6.4",
+    "ipython>=8.27.0",
+]

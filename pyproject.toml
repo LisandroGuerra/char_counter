@@ -8,6 +8,8 @@ dependencies = [
     "django>=5.1.1",
     "gunicorn>=23.0.0",
     "pdfplumber>=0.11.4",
+    "pillow>=10.4.0",
+    "pytesseract>=0.3.13",
 ]
 
 [tool.uv]

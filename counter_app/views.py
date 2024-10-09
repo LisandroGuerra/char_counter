@@ -16,8 +16,11 @@ def counter(request):
                     if texto:
                         texto_completo += texto
                 # Conta o número de caracteres
+                print(texto_completo)
                 num_caracteres = len(texto_completo)
-                result = len(texto_completo.replace(" ", ""))
+                # Limpa o texto
+                texto_completo_limpo = texto_completo.replace("\n", "").replace("\r", "").replace("\t", "").replace(" ", "")
+                result = len(texto_completo_limpo)
                 error = False
                 message = ""
         except:

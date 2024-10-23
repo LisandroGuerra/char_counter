@@ -31,6 +31,8 @@ def counter(request):
         file = request.FILES['arquivo']
         error = False
         message = ""
+        texto_completo = ""
+        res0 = res1 = res2 = 0
         try:
             if file.name.lower().endswith(('.pdf')):
                 # Processa arquivo PDF
@@ -49,6 +51,13 @@ def counter(request):
                 else:
                     raise ValueError("Erro ao extrair texto.")
             # Limpa o texto
+            res1 = texto_completo.replace(" ", "")
+            res2 = res1.replace("\n", "")
+            res0 = len(texto_completo)
+            res1 = len(res1)
+            res2 = len(res2)
+            
+
             texto_completo_limpo = (
                 texto_completo.replace("\n", "")
                               .replace("\r", "")
@@ -63,7 +72,15 @@ def counter(request):
             error = True
             message = f"Erro: {str(e)}"
         
-        return render(request, 'index.html', {'file': file, 'result': result, 'error': error, 'message': message})
+        return render(request, 'index.html', {
+            'file': file, 
+            'result': result, 
+            'error': error, 
+            'message': message, 
+            'res0': res0, 
+            'res1': res1,
+            'res2': res2,
+            'texto_extraido': texto_completo.strip().strip("\n")})
 
 
 

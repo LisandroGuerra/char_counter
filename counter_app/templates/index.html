@@ -39,37 +39,66 @@
                     {% endif %}
                 </div>
 
-                <style>
+                <!-- <style>
                     .table-rounded {
                   border-radius: 15px;
                   overflow: hidden;
                 }
-              </style>
+                thead {
+                    border-top: none !important;
+                }
+              </style> -->
 
                 <div class="d-flex justify-content-center mt-4">
                     {% if result and not error %}
-                        <table class="table table-rounded">
-                            <thead>
-                            <tr class="table-info">
-                                <th>Caracteres:</th>
-                                <th>{{ result }}</th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            <tr class="table-info">
-                                <td>Arquivo:</td>
-                                <td>{{ file }}</td>
-                            </tr>
-                            </tbody>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Caracteres</th>
+                                        <th>Qnt.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Todos:</td>
+                                        <td>{{ res0 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Sem espaços:</td>
+                                        <td>{{ res1 }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Sem NL:</td>
+                                        <td>{{ res2 }}</td>
+                                    </tr>
+                                    <tr class="table-light">
+                                        <td>Arquivo:</td>
+                                        <td>{{ file }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     {% endif %}
                 </div>
             </div>
         </div>
+        {% if texto_extraido %}
+            <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto">
+                <form>
+                    <div class="form-group">
+                        <label for="exampleTextarea" style="color: rgb(192, 192, 192); font-weight: 500;">Texto Completo:</label>
+                        <textarea class="form-control" id="exampleTextarea" rows="10" disabled">
+                            {{ texto_extraido }}
+                        </textarea>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
     </div>
+    <br><br>
 
-
-    <script>
+    {% comment %} <script>
         function handleFormSubmit(event) {
             // Previne o envio imediato do formulário
             event.preventDefault();
@@ -84,8 +113,8 @@
             // Simulação do envio do formulário com timeout (substitua pelo envio real do formulário)
             setTimeout(() => {
                 form.submit(); // Envia o formulário normalmente após o tempo de espera
-            }, 1000); // Apenas para simular um delay
+            }, 500); // Apenas para simular um delay
         }
-    </script>
+    </script> {% endcomment %}
 
     {% endblock content %}

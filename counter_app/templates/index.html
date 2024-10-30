@@ -36,14 +36,15 @@
                             <!-- File Upload -->
                             <fieldset>
                                 <legend class="form-label">Selecione o arquivo:</legend>
-
-                                <div class="custom-file">
-                                    <!-- Input de arquivo oculto -->
-                                    <input type="file" class="custom-file-input d-none" id="uploaded_file" name="uploaded_file" required onchange="updateFileName()">
-                                    <!-- Botão personalizado que chama o input de arquivo -->
-                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('uploaded_file').click()">Selecione</button>
-                                    <!-- Label para exibir o nome do arquivo -->
-                                    <span id="file-name" class="ml-2 text-secondary">Escolha um arquivo...</span>
+                                <div class="input-group border p-2 rounded">
+                                    <div class="custom-file ">
+                                        <!-- Input de arquivo oculto -->
+                                        <input type="file" class="custom-file-input d-none" id="uploaded_file" name="uploaded_file" required onchange="updateFileName()">
+                                        <!-- Botão personalizado que chama o input de arquivo -->
+                                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('uploaded_file').click()">Selecione</button>
+                                        <!-- Label para exibir o nome do arquivo -->
+                                        <span id="file-name" class="ml-2 text-secondary">Escolha um arquivo...</span>
+                                    </div>
                                 </div>
                             </fieldset>
                             
@@ -164,7 +165,7 @@
 
             // Encurta o nome do arquivo se exceder o limite
             if (fullFileName.length > maxLength) {
-                const start = fullFileName.slice(0, 22);  // Primeiros caracteres
+                const start = fullFileName.slice(0, 20);  // Primeiros caracteres
                 const end = fullFileName.slice(-10);       // Últimos caracteres
                 displayName = `${start}...${end}`;
             }

@@ -63,3 +63,5 @@ coverage.xml
 
 # Arquivos do Docker (se forem gerados localmente)
 docker-compose.override.yml
+
+bkup*

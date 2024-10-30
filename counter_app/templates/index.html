@@ -8,16 +8,41 @@
         <div class="row">
             <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center form p-4">
                 <h3 class="">Contador de caracteres</h3>
-                <p class="text-truncate text-secondary">Faça upload de arquivo.</p>
+                <p class="text-truncate text-secondary">Selecione os idiomas contidos no documento.</p>
+                <hr>
                 <div class="px-2 text-left">
                     <form action="{% url 'counter' %}" method="post" enctype="multipart/form-data" onsubmit="handleFormSubmit(event)">
                         {% csrf_token %}
 
                         <div class="form-group">
+                            <!-- Languages selection -->
                             <div class="input-group">
-                                <label class="form-label" for="inputGroup">Selecione um arquivo</label>
-                                <input type="file" class="" id="inputGroup" name="arquivo" required>                                
+                                <fieldset class="form-group" >
+                                    <legend class="form-label">Selecione os idiomas:</legend>
+
+                                    {% for language in languages_list %}
+                                    
+                                        <div class="form-check form-check-inline">                                        
+                                            <input class="form-check-input" type="checkbox" id="{{ language.id }}" name="languages" value="{{ language.id }}" 
+                                            {% if language.id == 'por' %} checked {% endif %}>
+                                            <label class="form-check-label" for="{{ language.id }}">{{ language.name }}</label>
+                                        </div>
+
+                                    {% endfor %}
+
+                                </fieldset> 
                             </div>
+                        
+                            <!-- File Upload -->
+                            <fieldset>
+                                <legend class="form-label">Selecione o arquivo:</legend>
+
+                                <div class="input-group">
+                                    <label class="form-label" for="uploaded_file">Arquivo: </label>
+                                    <input type="file" class="" id="uploaded_file" name="uploaded_file" required>                                
+                                </div>
+                            </fieldset>
+                            
                             <div class="d-flex justify-content-center mt-4">
                                 <button id="submitButton" class="btn btn-outline-info col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto" type="submit">Contar</button>
                             </div>
@@ -39,57 +64,65 @@
                     {% endif %}
                 </div>
 
-                <!-- <style>
-                    .table-rounded {
-                  border-radius: 15px;
-                  overflow: hidden;
-                }
-                thead {
-                    border-top: none !important;
-                }
-              </style> -->
-
-                <div class="d-flex justify-content-center mt-4">
-                    {% if result and not error %}
-                        <div class="table-responsive">
-                            <table class="table">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Caracteres</th>
-                                        <th>Qnt.</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Todos:</td>
-                                        <td>{{ res0 }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Sem espaços:</td>
-                                        <td>{{ res1 }}</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Sem NL:</td>
-                                        <td>{{ res2 }}</td>
-                                    </tr>
-                                    <tr class="table-light">
-                                        <td>Arquivo:</td>
-                                        <td>{{ file }}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    {% endif %}
-                </div>
+                <!-- AQUI -->
+                 <hr>
             </div>
         </div>
-        {% if texto_extraido %}
-            <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto">
+
+        <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center">
+            {% if qt_char_extracted and not error %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead class="table-light">
+                            <tr>
+                                <th colspan="2">Estatísticas</th>
+                            </tr>
+                        </thead>
+                        <tbody>                                   
+                            <tr>
+                                <td colspan="2">{{ file_name }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-left">Idiomas:</td>
+                                <td class="text-right">
+                                    {% for language in selected_languages %}
+                                        {{ language }}{% if not forloop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="text-left">Páginas:</td>
+                                <td class="text-right">{{ qt_pages }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-left">Imagens:</td>
+                                <td class="text-right">{{ qt_images }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-left">Palavras:</td>
+                                <td class="text-right">{{ qt_words }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-left">Caracteres <span class="text-secondary" style="font-size: small;">(com espaços)</span>:</td>
+                                <td class="text-right">{{ qt_char_extracted }}</td>
+                            </tr>
+                            <tr>
+                                <td class="text-left">Caracteres <span class="text-secondary" style="font-size: small;">(sem espaços)</span>:</td>
+                                <td class="text-right">{{ qt_char_cleaned }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+
+        {% if text_extracted %}
+            <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto form">
                 <form>
                     <div class="form-group" style="color: rgb(192, 192, 192); font-weight: 500;">
-                        <label for="textoCompleto">Texto Completo:</label>
+                        <label for="textoCompleto">Texto Extraído:</label>
                         <textarea class="form-control" id="textoCompleto" rows="10" disabled>
-                            {{ texto_extraido }}
+                            {{ text_extracted }}
                         </textarea>
                     </div>
                 </form>

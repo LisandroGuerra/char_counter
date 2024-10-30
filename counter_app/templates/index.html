@@ -3,7 +3,7 @@
 
     {% block title %}Contador{% endblock %}
 
-    {% block content %}    
+    {% block content %}  
     <div class="container">
         <div class="row">
             <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center form p-4">
@@ -22,10 +22,10 @@
 
                                     {% for language in languages_list %}
                                     
-                                        <div class="form-check form-check-inline">                                        
-                                            <input class="form-check-input" type="checkbox" id="{{ language.id }}" name="languages" value="{{ language.id }}" 
+                                        <div class="custom-control-inline custom-checkbox form-check">                                        
+                                            <input class="custom-control-input" type="checkbox" id="{{ language.id }}" name="languages" value="{{ language.id }}" 
                                             {% if language.id == 'por' %} checked {% endif %}>
-                                            <label class="form-check-label" for="{{ language.id }}">{{ language.name }}</label>
+                                            <label class="custom-control-label" for="{{ language.id }}">{{ language.name }}</label>
                                         </div>
 
                                     {% endfor %}
@@ -37,9 +37,13 @@
                             <fieldset>
                                 <legend class="form-label">Selecione o arquivo:</legend>
 
-                                <div class="input-group">
-                                    <label class="form-label" for="uploaded_file">Arquivo: </label>
-                                    <input type="file" class="" id="uploaded_file" name="uploaded_file" required>                                
+                                <div class="custom-file">
+                                    <!-- Input de arquivo oculto -->
+                                    <input type="file" class="custom-file-input d-none" id="uploaded_file" name="uploaded_file" required onchange="updateFileName()">
+                                    <!-- Botão personalizado que chama o input de arquivo -->
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('uploaded_file').click()">Selecione</button>
+                                    <!-- Label para exibir o nome do arquivo -->
+                                    <span id="file-name" class="ml-2 text-secondary">Escolha um arquivo...</span>
                                 </div>
                             </fieldset>
                             
@@ -147,6 +151,26 @@
             setTimeout(() => {
                 form.submit(); // Envia o formulário normalmente após o tempo de espera
             }, 500); // Apenas para simular um delay
+        }
+
+        function updateFileName() {
+            const fileInput = document.getElementById('uploaded_file');
+            const fileNameSpan = document.getElementById('file-name');
+            const fullFileName = fileInput.files[0]?.name || 'Escolha um arquivo...';
+
+            // Limite de comprimento para o nome do arquivo exibido
+            const maxLength = 35;
+            let displayName = fullFileName;
+
+            // Encurta o nome do arquivo se exceder o limite
+            if (fullFileName.length > maxLength) {
+                const start = fullFileName.slice(0, 22);  // Primeiros caracteres
+                const end = fullFileName.slice(-10);       // Últimos caracteres
+                displayName = `${start}...${end}`;
+            }
+
+            // Atualiza o texto da label com o nome do arquivo (encurtado se necessário)
+            fileNameSpan.textContent = displayName;
         }
     </script>
 

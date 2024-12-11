@@ -17,7 +17,7 @@ RUN apk update && \
     apk upgrade && \
     apk add curl && \
     apk add --no-cache tesseract-ocr tesseract-ocr-dev gcc g++ make && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    curl -LsSf https://astral.sh/uv/0.4.6/install.sh | sh && \
     uv sync && \
     adduser --disabled-password counter && \
     chown -R counter:counter /usr/app

@@ -17,12 +17,14 @@ __pycache__/
 # Ignorar configurações de IDE
 .vscode/
 .idea/
+.ruff_cache/
 
 # Ignorar arquivos de migração (opcional, se não forem necessários no build da imagem)
 migrations/
 
 # Ignorar arquivos de banco de dados SQLite
 *.db
+*.sqlite3
 
 # Ignorar logs
 *.log
@@ -39,6 +41,8 @@ media/
 
 # Ignorar arquivos de testes (se não forem necessários no build)
 tests/
+base_tests/
+teste*.py
 
 # Ignorar arquivos de controle de versão
 .git/

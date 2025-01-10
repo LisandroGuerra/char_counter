@@ -1,145 +1,163 @@
-from django.shortcuts import render
-import pdfplumber
-from PIL import Image, ImageEnhance
-import pytesseract
 import os
+import tempfile
+from functools import partial
+
+import pdfplumber
+import pytesseract
+from PIL import Image, ImageEnhance
+from pdf2image import convert_from_path
+from django.shortcuts import render
+
+from .utils import get_pdf_fonts_and_encodings_as_dict, validate_pdf_fonts_and_encodings
+
+
+def handle_uploaded_file(file, callback):
+    """Grava o arquivo enviado em um temporário e executa o callback."""
+    with tempfile.NamedTemporaryFile(delete=True, suffix=".pdf") as temp_file:
+        for chunk in file.chunks():
+            temp_file.write(chunk)
+        temp_file.flush()
+        return callback(temp_file.name)
 
 
 def process_pdf(file, lang):
-    '''
-    Receives a file and a language code and returns the text extracted from the PDF, number of pages, number of words and number of images with text.
-    Languages supported by Tesseract OCR: https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html
-    Can use multiple languages separated by '+', e.g. 'eng+por'.
-    '''
-    text_extracted = ''
-    image_path = 'image.jpg'
+    """Processa um arquivo PDF para extrair texto e contar palavras, imagens e páginas."""
+    text_extracted = ""
     qt_pages, qt_images, qt_words = 0, 0, 0
-    
+
     with pdfplumber.open(file) as pdf:
         qt_pages = len(pdf.pages)
         for page in pdf.pages:
             words = page.extract_words()
             qt_words += len(words)
-            for word in words:
-                text = word['text']
-                is_vertical = not word['upright']  # Detects if the text is vertical
-                processed_text = text[::-1] if is_vertical else text  # Reverses the text if it is vertical
-                text_extracted += processed_text + " "
+            text_extracted += " ".join(
+                word["text"][::-1] if not word["upright"] else word["text"]
+                for word in words
+            ) + " "
 
             for image in page.images:
                 try:
-                    # Save the image to a temporary file
-                    with open(image_path, 'wb') as f:
-                        f.write(image['stream'].get_rawdata())
-                    
-                    # Try to extract text from the image
-                    text, qt_words_img = process_image(image_path, lang)
-                    if text:
-                        text_extracted += text  
-                        qt_words += qt_words_img                      
-                        qt_images += 1
-
+                    with tempfile.NamedTemporaryFile(delete=True, suffix=".jpg") as temp_img:
+                        temp_img.write(image["stream"].get_rawdata())
+                        temp_img.flush()
+                        text, img_words = process_image(temp_img.name, lang)
+                        if text:
+                            text_extracted += text
+                            qt_words += img_words
+                            qt_images += 1
                 except Exception as e:
                     print(f"Erro processando imagem de PDF: {e}")
 
-                finally:
-                    # Remove the temporary image if it exists
-                    if os.path.exists(image_path):
-                        os.remove(image_path)
-                
     return text_extracted, qt_pages, qt_images, qt_words
 
 
-def process_image(file_path, lang='eng'):
-    '''
-    Receives a file path and a language code and returns the text extracted from the image.
-    Languages supported by Tesseract OCR: https://tesseract-ocr.github.io/tessdoc/Data-Files-in-different-versions.html
-    Can use multiple languages separated by '+', e.g. 'eng+por'.
-    '''
+def process_image(file_path, lang="eng"):
+    """Processa uma imagem para extrair texto e contar palavras."""
+    key_words = ["assinado", "assinatura", "assinaturas"]
     try:
-        # Opens an image treat it and extracts text with pytesseract
-        qt_words = 0
-        image = Image.open(file_path).convert('L')
-        resized_image = image.resize((image.width * 3, image.height * 3), Image.Resampling.LANCZOS)
-        enhanced_image = ImageEnhance.Contrast(resized_image).enhance(2)
+        image = Image.open(file_path).convert("L")
+        enhanced_image = ImageEnhance.Contrast(
+            image.resize((image.width * 3, image.height * 3), Image.Resampling.LANCZOS)
+        ).enhance(2)
         text_extracted = pytesseract.image_to_string(enhanced_image, lang=lang)
-        qt_words += len(text_extracted.split())
-        return text_extracted, qt_words
+        qt_words = len(text_extracted.split())
 
+        # Remove 2 linhas finais com assinaturas
+        lines = [line.strip() for line in text_extracted.split("\n") if line.strip()]
+        def contains_key_words(line, words):
+            return any(word in line.lower() for word in words)
+        if len(lines) >= 2 and all(contains_key_words(line, key_words) for line in lines[-2:]):
+            lines = lines[:-2]
+        text_extracted = "\n".join(lines)
+
+        return text_extracted, qt_words
     except Exception as e:
         raise ValueError(f"Erro extraindo texto da imagem: {e}")
 
 
+def extract_text_from_pdf_images(pdf_path, lang):
+    """Extrai texto das imagens geradas a partir de um PDF."""
+    report = []
+    with tempfile.TemporaryDirectory() as temp_dir:
+        images = convert_from_path(pdf_path, output_folder=temp_dir, fmt="JPEG")
+        for i, image in enumerate(images):
+            image_file = os.path.join(temp_dir, f"page_{i + 1}.jpg")
+            image.save(image_file, "JPEG")
+            text, qt_words = process_image(image_file, lang)
+            report.append({"page": i + 1, "text": text, "word_count": qt_words})
+
+    text_extracted = "\n".join(f"{page['text']}" for page in report)
+    qt_pages = len(report)
+    qt_words = sum(page["word_count"] for page in report)
+    return text_extracted, qt_pages, qt_pages, qt_words
+
+
 def counter(request):
-    '''
-    Receives a file and a list of languages and returns the extracted text, number of pages, number of images with text, number of words and number of characters.
-    '''
+    """
+    Recebe um arquivo e uma lista de idiomas e retorna texto extraído,
+    número de páginas, imagens com texto, palavras e caracteres.
+    """
     languages_list = [
-        {'id': 'deu', 'name': 'Alemão'},
-        {'id': 'kor', 'name': 'Coreano'},
-        {'id': 'spa', 'name': 'Espanhol'},
-        {'id': 'fra', 'name': 'Francês'},
-        {'id': 'hin', 'name': 'Hindi'},
-        {'id': 'eng', 'name': 'Inglês'},
-        {'id': 'ita', 'name': 'Italiano'},
-        {'id': 'jpn', 'name': 'Japonês'},
-        {'id': 'por', 'name': 'Português'}
+        {"id": "deu", "name": "Alemão"}, {"id": "kor", "name": "Coreano"},
+        {"id": "spa", "name": "Espanhol"}, {"id": "fra", "name": "Francês"},
+        {"id": "hin", "name": "Hindi"}, {"id": "eng", "name": "Inglês"},
+        {"id": "ita", "name": "Italiano"}, {"id": "jpn", "name": "Japonês"},
+        {"id": "por", "name": "Português"}
     ]
 
-    if request.method == 'GET':
-        return render(request, 'index.html', {'languages_list': languages_list})
-    elif request.method == 'POST':
-        file_languages = request.POST.getlist('languages')
-        lang = '+'.join(file_languages)
-        selected_languages = [language['name'] for language in languages_list if language['id'] in file_languages]
-        file = request.FILES['uploaded_file']
-        file_name = str(file)[0:40] + '...' if len(str(file)) > 40 else str(file)
-        error = False
-        message, text_extracted, text_cleaned = '', '', ''
-        qt_char_extracted, qt_char_cleaned, qt_pages, qt_images, qt_words = 0, 0, 0, 0, 0
-        try:
-            if file.name.lower().endswith(('.pdf')):
-                # PDF file processing
+    if request.method == "GET":
+        return render(request, "index.html", {"languages_list": languages_list})
+
+    file = request.FILES["uploaded_file"]
+    lang = "+".join(request.POST.getlist("languages"))
+    selected_languages = [
+        language["name"] for language in languages_list if language["id"] in lang
+    ]
+    file_name = file.name[:40] + "..." if len(file.name) > 40 else file.name
+    error, message = False, ""
+    text_extracted, text_cleaned = "", ""
+    qt_pages = qt_images = qt_words = qt_char_extracted = qt_char_cleaned = 0
+
+    try:
+        if file.name.lower().endswith(".pdf"):
+            fonts_and_encodings = handle_uploaded_file(file, get_pdf_fonts_and_encodings_as_dict)
+            if validate_pdf_fonts_and_encodings(fonts_and_encodings):
                 text_extracted, qt_pages, qt_images, qt_words = process_pdf(file, lang)
-            elif file.name.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tiff')):
-                # Image file processing
-                text_extracted, qt_words = process_image(file, lang)
-                qt_images += 1
-                qt_pages += 1
             else:
-                raise ValueError("Tipo de arquivo não suportado.")
+                callback = partial(extract_text_from_pdf_images, lang=lang)
+                text_extracted, qt_pages, qt_images, qt_words = handle_uploaded_file(file, callback)
+        elif file.name.lower().endswith(("jpg", "jpeg", "png", "bmp", "gif", "tiff")):
+            text_extracted, qt_words = process_image(file, lang)
+            qt_images += 1
+            qt_pages += 1
+        else:
+            raise ValueError("Tipo de arquivo não suportado.")
 
-            if not text_extracted:
-                if file.name.lower().endswith(('.pdf')):
-                    raise ValueError("Erro ao extrair texto do PDF.")
-                elif file.name.lower().endswith(('.jpg', '.jpeg', '.png')):
-                    raise ValueError("Erro ao extrair texto da imagem.")
-                else:
-                    raise ValueError("Erro ao extrair texto.")
-            # Clean the extracted text
-            text_cleaned = (
-                text_extracted.replace("\n", "")
-                              .replace("\r", "")
-                              .replace("\t", "")
-                              .replace(" ", "")
-            )
-            # Count the number of characters in the extracted and cleaned text
-            qt_char_extracted = len(text_extracted)
-            qt_char_cleaned = len(text_cleaned)
+        if not text_extracted:
+            raise ValueError("Erro ao extrair texto.")
 
-        except Exception as e:
-            error = True
-            message = f"Erro: {str(e)}"
-        
-        return render(request, 'index.html', {
-            'file_name': file_name,
-            'languages_list': languages_list,
-            'selected_languages': selected_languages, 
-            'error': error, 
-            'message': message,
-            'qt_pages': qt_pages,
-            'qt_images': qt_images,
-            'qt_words': qt_words, 
-            'qt_char_extracted': qt_char_extracted,
-            'qt_char_cleaned': qt_char_cleaned,
-            'text_extracted': text_extracted.strip().strip("\n")})
+        text_cleaned = text_extracted.replace("\n", "").replace("\r", "").replace("\t", "").replace(" ", "")
+        qt_char_extracted = len(text_extracted)
+        qt_char_cleaned = len(text_cleaned)
+
+    except Exception as e:
+        error = True
+        message = f"Erro: {e}"
+
+    return render(
+        request,
+        "index.html",
+        {
+            "file_name": file_name,
+            "languages_list": languages_list,
+            "selected_languages": selected_languages,
+            "error": error,
+            "message": message,
+            "qt_pages": qt_pages,
+            "qt_images": qt_images,
+            "qt_words": qt_words,
+            "qt_char_extracted": qt_char_extracted,
+            "qt_char_cleaned": qt_char_cleaned,
+            "text_extracted": text_extracted.strip(),
+        },
+    )

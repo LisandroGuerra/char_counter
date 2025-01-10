@@ -63,5 +63,10 @@ coverage.xml
 
 # Arquivos do Docker (se forem gerados localmente)
 docker-compose.override.yml
+compose.override.yml
 
+# Arquivos de backup e temporários
 bkup*
+base_testes/
+teste*.py
+.ruff_cache/

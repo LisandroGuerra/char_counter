@@ -16,6 +16,7 @@ COPY pyproject.toml .
 RUN apk update && \
     apk upgrade && \
     apk add curl && \
+    apk add poppler-utils && \
     apk add --no-cache tesseract-ocr tesseract-ocr-dev gcc g++ make && \
     curl -LsSf https://astral.sh/uv/0.4.6/install.sh | sh && \
     uv sync && \

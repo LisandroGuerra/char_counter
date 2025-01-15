@@ -4,11 +4,18 @@ from functools import partial
 
 import pdfplumber
 import pytesseract
-from PIL import Image, ImageEnhance
+
 from pdf2image import convert_from_path
 from django.shortcuts import render
 
-from .utils import get_pdf_fonts_and_encodings_as_dict, validate_pdf_fonts_and_encodings
+from .utils import (get_pdf_fonts_and_encodings_as_dict, 
+                    get_file_metadata_as_dict,
+                    validate_pdf_fonts_and_encodings, 
+                    validate_pdf_creator_author_creator_tool,
+                    validate_pdf,
+                    preprocess_image_hard,
+                    preprocess_image_soft
+                    )
 
 
 def handle_uploaded_file(file, callback):
@@ -53,22 +60,48 @@ def process_pdf(file, lang):
 
 def process_image(file_path, lang="eng"):
     """Processa uma imagem para extrair texto e contar palavras."""
-    key_words = ["assinado", "assinatura", "assinaturas"]
+    remove_target_lines = True
+    
     try:
-        image = Image.open(file_path).convert("L")
-        enhanced_image = ImageEnhance.Contrast(
-            image.resize((image.width * 3, image.height * 3), Image.Resampling.LANCZOS)
-        ).enhance(2)
-        text_extracted = pytesseract.image_to_string(enhanced_image, lang=lang)
-        qt_words = len(text_extracted.split())
+        processed_image = preprocess_image_hard(file_path)
+        text_extracted = pytesseract.image_to_string(processed_image, lang=lang)
 
-        # Remove 2 linhas finais com assinaturas
-        lines = [line.strip() for line in text_extracted.split("\n") if line.strip()]
-        def contains_key_words(line, words):
-            return any(word in line.lower() for word in words)
-        if len(lines) >= 2 and all(contains_key_words(line, key_words) for line in lines[-2:]):
-            lines = lines[:-2]
-        text_extracted = "\n".join(lines)
+        # Remove linhas com caracteres não alfanuméricos excessivos
+        lines = text_extracted.splitlines()
+        cleaned_lines = []
+        for line in lines:
+            non_alpha_count = sum(1 for char in line if not char.isalpha())
+            alpha_count = sum(1 for char in line if char.isalpha())
+            if alpha_count >= non_alpha_count:
+                cleaned_lines.append(line)
+        text_extracted = "\n".join(cleaned_lines) 
+
+        #Remove linhas que tem apenas palavras com menos de 3 caracteres
+        lines = text_extracted.splitlines()
+        cleaned_lines = []
+        for line in lines:
+        # Ignorar linhas vazias ou com apenas espaços em branco
+            if line.strip():
+                words = line.split()
+                # Verificar se todas as palavras têm menos de 3 caracteres
+                if any(len(word) >= 3 for word in words):
+                    cleaned_lines.append(line)     
+        text_extracted = "\n".join(cleaned_lines)
+
+
+        # Remove target lines from the end of the text if they contain key words
+        if remove_target_lines:
+            key_words = ["assinado", "assinatura", "assinaturas"]
+            target_lines = 2
+            lines = [line.strip() for line in text_extracted.split("\n") if line.strip()]
+            def contains_key_words(line, words):
+                return any(word in line.lower() for word in words)
+            if len(lines) >= target_lines and all(contains_key_words(line, key_words) for line in lines[-target_lines:]):
+                lines = lines[:-target_lines]
+            text_extracted = "\n".join(lines)
+
+
+        qt_words = len(text_extracted.split())
 
         return text_extracted, qt_words
     except Exception as e:
@@ -120,8 +153,11 @@ def counter(request):
 
     try:
         if file.name.lower().endswith(".pdf"):
-            fonts_and_encodings = handle_uploaded_file(file, get_pdf_fonts_and_encodings_as_dict)
-            if validate_pdf_fonts_and_encodings(fonts_and_encodings):
+            pdf_is_valid = handle_uploaded_file(file, validate_pdf)
+            # fonts_and_encodings = handle_uploaded_file(file, get_pdf_fonts_and_encodings_as_dict)
+            # creators_authors_info = handle_uploaded_file(file, get_file_metadata_as_dict)
+            # if validate_pdf_fonts_and_encodings(fonts_and_encodings) and validate_pdf_creator_author_creator_tool(creators_authors_info):
+            if pdf_is_valid:
                 text_extracted, qt_pages, qt_images, qt_words = process_pdf(file, lang)
             else:
                 callback = partial(extract_text_from_pdf_images, lang=lang)

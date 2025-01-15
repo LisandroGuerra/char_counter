@@ -1,4 +1,5 @@
 import subprocess
+from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 
 
 def get_pdfinfo_as_dict(pdf_path):
@@ -34,7 +35,7 @@ def get_pdfinfo_as_dict(pdf_path):
         raise RuntimeError(f"Ocorreu um erro ao obter informações do PDF: {e}")
 
 
-def get_pdf_fonts_and_encodings_as_dict(pdf_path, *args, **kwargs):
+def get_pdf_fonts_and_encodings_as_dict(pdf_path):
     """
     Executa o comando `pdffonts` em um arquivo PDF e retorna as informações de fontes e encodings como um dicionário.
     
@@ -83,6 +84,28 @@ def validate_pdf_fonts_and_encodings(fonts_info):
     return True
 
 
+def validate_pdf_creator_author_creator_tool(file_info):
+    """
+    Verifica se as chaves 'Creator', 'Author' e 'CreatorTool' estão presentes no arquivo PDF
+    e seus valores são diferentes de:
+    'creator_tool': 'PDF24 Creator',
+    'creator': 'inss',
+    'author': 'inss'
+
+    :param file: Arquivo PDF.
+    :return: True se as chaves forem diferentes destes valores, False caso contrário.
+    """
+    try:
+        creator_tool = file_info.get("creator_tool", "").lower()
+        creator = file_info.get("creator", "").lower()
+        author = file_info.get("author", "").lower()
+
+        return not (creator_tool == "pdf24 creator" and creator == "inss" and author == "inss")
+
+    except Exception as e:
+        raise RuntimeError(f"Erro ao validar informações do PDF: {e}")
+
+
 def get_file_metadata_as_dict(file_path):
     """
     Executa o comando `exiftool` em um arquivo e retorna as informações como um dicionário.
@@ -117,13 +140,76 @@ def get_file_metadata_as_dict(file_path):
     except Exception as e:
         raise RuntimeError(f"Ocorreu um erro ao obter metadados do arquivo: {e}")
 
+
+def validate_pdf(file_path):
+    """
+    Valida um arquivo PDF verificando se as fontes e encodings são válidos e se as informações
+    de 'Creator', 'Author' e 'CreatorTool' são diferentes de:
+    'creator_tool': 'PDF24 Creator',
+    'creator': 'inss',
+    'author': 'inss'
+
+    :param file_path: Caminho para o arquivo PDF.
+    :return: True se o arquivo é válido, False caso contrário.
+    """
+    try:
+        fonts_info = get_pdf_fonts_and_encodings_as_dict(file_path)
+        file_info = get_file_metadata_as_dict(file_path)
+
+        return validate_pdf_fonts_and_encodings(fonts_info) and validate_pdf_creator_author_creator_tool(file_info)
+
+    except Exception as e:
+        raise RuntimeError(f"Erro ao validar arquivo PDF: {e}")
+
+
+def preprocess_image_hard(image_path):
+    image = Image.open(image_path)
+    # Converter para escala de cinza
+    gray_image = ImageOps.grayscale(image)
+    # Aplicar filtro de nitidez
+    sharpened_image = gray_image.filter(ImageFilter.SHARPEN)
+    # Binarizar a imagem
+    threshold = 128
+    binary_image = sharpened_image.point(lambda x: 255 if x > threshold else 0, mode='1')
+    return binary_image
+
+
+def preprocess_image_soft(image_path):
+    image = Image.open(file_path).convert("L")
+    enhanced_image = ImageEnhance.Contrast(
+            image.resize((image.width * 3, image.height * 3), Image.Resampling.LANCZOS)
+        ).enhance(2)
+    return enhanced_image
+
+
 # Exemplo de uso
 if __name__ == "__main__":
     file_path = "base_testes/pmpgb.pdf"
     file_path = "base_testes/divinaaparecida_traducao_1.png"
     file_path = "base_testes/jacquelineveloso_Trad_Espanhol.pdf"
+    # file_path = "base_testes/Traducao_ANTONIO_ALVAREZ_PAREDES.pdf"
     try:
         info = get_file_metadata_as_dict(file_path)
+        print('#'*30, 'FILE_METADATA_INICIO', '#'*30)
         print(info)
+        print('#'*30, 'FILE_METADATA_FIM', '#'*30)
+        print()
     except Exception as e:
+        print(e)
+
+    try:    
+        info = get_pdf_fonts_and_encodings_as_dict(file_path)
+        print('#'*30, 'PDF_FONTS_INICIO', '#'*30)
+        print(info)
+        print('#'*30, 'PDF_FONTS_FIM', '#'*30)  
+        print()
+    except Exception as e:
+        print(e)
+
+    try:
+        info = get_pdfinfo_as_dict(file_path)
+        print('#'*30, 'PDF_INFO_INICIO', '#'*30)
+        print(info)
+        print('#'*30, 'PDF_INFO_FIM', '#'*30)
+    except Exception as e:        
         print(e)

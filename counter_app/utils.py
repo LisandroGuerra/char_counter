@@ -175,7 +175,7 @@ def preprocess_image_hard(image_path):
 
 
 def preprocess_image_soft(image_path):
-    image = Image.open(file_path).convert("L")
+    image = Image.open(image_path).convert("L")
     enhanced_image = ImageEnhance.Contrast(
             image.resize((image.width * 3, image.height * 3), Image.Resampling.LANCZOS)
         ).enhance(2)

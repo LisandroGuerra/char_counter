@@ -60,7 +60,8 @@ def process_pdf(file, lang):
 
 def process_image(file_path, lang="eng"):
     """Processa uma imagem para extrair texto e contar palavras."""
-    remove_target_lines = True
+    remove_target_lines = False
+    word_length = 4
     
     try:
         processed_image = preprocess_image_hard(file_path)
@@ -76,15 +77,15 @@ def process_image(file_path, lang="eng"):
                 cleaned_lines.append(line)
         text_extracted = "\n".join(cleaned_lines) 
 
-        #Remove linhas que tem apenas palavras com menos de 3 caracteres
+        #Remove linhas que tem apenas palavras com menos caracteres que definido em word_length
         lines = text_extracted.splitlines()
         cleaned_lines = []
         for line in lines:
         # Ignorar linhas vazias ou com apenas espaços em branco
             if line.strip():
                 words = line.split()
-                # Verificar se todas as palavras têm menos de 3 caracteres
-                if any(len(word) >= 3 for word in words):
+                # Verificar se todas as palavras têm menos de N caracteres
+                if any(len(word) >= word_length for word in words):
                     cleaned_lines.append(line)     
         text_extracted = "\n".join(cleaned_lines)
 

@@ -25,7 +25,17 @@ SECRET_KEY = 'django-insecure-yb5vgo*=b$%o!)m!e2cx_2)e5jq170ix^5bh4)1qw0ws5djuk=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['spartanix.com', 'localhost', '127.0.0.1', '0.0.0.0']
+ALLOWED_HOSTS = ['concar.spartanix.com', 'spartanix.com', '127.0.0.1', 'localhost', '0.0.0.0']
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = False
+CSRF_TRUSTED_ORIGINS = [
+    'https://concar.spartanix.com',
+    'https://spartanix.com',
+    'http://concar.spartanix.com',
+    'http://spartanix.com',
+    'http://spartanix.com:8000',
+    'http://localhost:8000',
+]
 
 
 # Application definition
@@ -74,12 +84,13 @@ WSGI_APPLICATION = 'counter.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.dummy"
     }
 }
+
 
 
 # Password validation

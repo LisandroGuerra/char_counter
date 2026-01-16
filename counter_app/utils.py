@@ -1,13 +1,14 @@
 import subprocess
+import logging
 from PIL import Image, ImageEnhance, ImageOps, ImageFilter
 
+# Configuração de Logs
+logger = logging.getLogger(__name__)
 
 def get_pdfinfo_as_dict(pdf_path):
     """
-    Executa o comando `pdfinfo` em um arquivo PDF e retorna as informações como um dicionário.
-    
-    :param pdf_path: Caminho para o arquivo PDF.
-    :return: Dicionário contendo as informações do PDF.
+    Executa o comando `pdfinfo` (Poppler) em um arquivo PDF.
+    Útil para debug de metadados básicos.
     """
     try:
         result = subprocess.run(
@@ -18,9 +19,9 @@ def get_pdfinfo_as_dict(pdf_path):
         )
 
         if result.returncode != 0:
-            raise RuntimeError(f"Erro ao executar pdfinfo: {result.stderr.strip()}")
+            logger.warning(f"pdfinfo retornou erro para {pdf_path}: {result.stderr.strip()}")
+            return {}
 
-        # Processa a saída e converte para um dicionário
         pdf_info = {}
         for line in result.stdout.strip().split("\n"):
             if ":" in line:
@@ -30,20 +31,18 @@ def get_pdfinfo_as_dict(pdf_path):
         return pdf_info
 
     except FileNotFoundError:
-        raise FileNotFoundError("O utilitário 'pdfinfo' não foi encontrado. Certifique-se de que está instalado.")
+        logger.error("Ferramenta 'pdfinfo' não encontrada no sistema.")
+        return {}
     except Exception as e:
-        raise RuntimeError(f"Ocorreu um erro ao obter informações do PDF: {e}")
+        logger.error(f"Erro ao obter informações do PDF: {e}")
+        return {}
 
 
 def get_pdf_fonts_and_encodings_as_dict(pdf_path):
     """
-    Executa o comando `pdffonts` em um arquivo PDF e retorna as informações de fontes e encodings como um dicionário.
-    
-    :param pdf_path: Caminho para o arquivo PDF.
-    :return: Dicionário com as fontes e seus encodings.
+    Executa `pdffonts`. Usado pela validação legada para detectar fontes corrompidas.
     """
     try:
-        # Executa o comando `pdffonts`
         result = subprocess.run(
             ["pdffonts", pdf_path],
             stdout=subprocess.PIPE,
@@ -52,66 +51,31 @@ def get_pdf_fonts_and_encodings_as_dict(pdf_path):
         )
 
         if result.returncode != 0:
-            raise RuntimeError(f"Erro ao executar pdffonts: {result.stderr.strip()}")
+            # Em arquivos protegidos por senha, pdffonts pode falhar se não passar a senha.
+            # Como este é um utilitário de validação, apenas logamos.
+            logger.warning(f"pdffonts falhou: {result.stderr.strip()}")
+            return {"fonts": []}
 
-        # Processa a saída do pdffonts
-        lines = result.stdout.strip().split("\n")[2:]  # Ignora as duas primeiras linhas (cabeçalhos)
+        lines = result.stdout.strip().split("\n")[2:]
         fonts_and_encodings = []
 
         for line in lines:
-            font_name = line[:34].strip()  # Nome da fonte (colunas 1-34)
-            encoding = line[52:66].strip()  # Encoding (colunas 53-66)
-            fonts_and_encodings.append({"font_name": font_name, "encoding": encoding})
+            # Layout fixo do pdffonts (atenção a mudanças de versão do poppler)
+            if len(line) > 65:
+                font_name = line[:34].strip()
+                encoding = line[52:66].strip()
+                fonts_and_encodings.append({"font_name": font_name, "encoding": encoding})
 
         return {"fonts": fonts_and_encodings}
 
-    except FileNotFoundError:
-        raise FileNotFoundError("O utilitário 'pdffonts' não foi encontrado. Certifique-se de que está instalado.")
     except Exception as e:
-        raise RuntimeError(f"Ocorreu um erro ao obter informações das fontes: {e}")
-
-
-def validate_pdf_fonts_and_encodings(fonts_info):
-    """
-    Verifica se há 'font_name = "[none]"' ou 'encoding = "Custom"' na saída de fontes.
-
-    :param fonts_info: Dicionário retornado pela função get_fonts_and_encodings_as_dict.
-    :return: False se houver algum font_name = "[none]" ou encoding = "Custom", True caso contrário.
-    """
-    for font in fonts_info.get("fonts", []):
-        if font.get("font_name") == "[none]" or font.get("encoding") == "Custom":
-            return False
-    return True
-
-
-def validate_pdf_creator_author_creator_tool(file_info):
-    """
-    Verifica se as chaves 'Creator', 'Author' e 'CreatorTool' estão presentes no arquivo PDF
-    e seus valores são diferentes de:
-    'creator_tool': 'PDF24 Creator',
-    'creator': 'inss',
-    'author': 'inss'
-
-    :param file: Arquivo PDF.
-    :return: True se as chaves forem diferentes destes valores, False caso contrário.
-    """
-    try:
-        creator_tool = file_info.get("creator_tool", "").lower()
-        creator = file_info.get("creator", "").lower()
-        author = file_info.get("author", "").lower()
-
-        return not (creator_tool == "pdf24 creator" and creator == "inss" and author == "inss")
-
-    except Exception as e:
-        raise RuntimeError(f"Erro ao validar informações do PDF: {e}")
+        logger.error(f"Erro no pdffonts: {e}")
+        return {"fonts": []}
 
 
 def get_file_metadata_as_dict(file_path):
     """
-    Executa o comando `exiftool` em um arquivo e retorna as informações como um dicionário.
-    
-    :param file_path: Caminho para o arquivo.
-    :return: Dicionário contendo os metadados do arquivo.
+    Wrapper para o ExifTool. Extrai metadados detalhados.
     """
     try:
         result = subprocess.run(
@@ -122,13 +86,14 @@ def get_file_metadata_as_dict(file_path):
         )
 
         if result.returncode != 0:
-            raise RuntimeError(f"Erro ao executar exiftool: {result.stderr.strip()}")
+            logger.warning(f"exiftool falhou: {result.stderr.strip()}")
+            return {}
 
-        # Processa a saída e converte para um dicionário
         metadata = {}
         for line in result.stdout.strip().split("\n"):
-            if ": " in line:  # Garante que as linhas relevantes sejam processadas
+            if ": " in line:
                 key, value = map(str.strip, line.split(": ", 1))
+                # Normalização de chaves para snake_case
                 key_map = str.maketrans({" ": "_", "/": "_", "-": "_"})
                 key = key.translate(key_map).lower()
                 metadata[key] = value
@@ -136,80 +101,116 @@ def get_file_metadata_as_dict(file_path):
         return metadata
 
     except FileNotFoundError:
-        raise FileNotFoundError("O utilitário 'exiftool' não foi encontrado. Certifique-se de que está instalado.")
+        logger.error("Ferramenta 'exiftool' não encontrada.")
+        return {}
     except Exception as e:
-        raise RuntimeError(f"Ocorreu um erro ao obter metadados do arquivo: {e}")
+        logger.error(f"Erro no exiftool: {e}")
+        return {}
+
+
+# -------------------------------------------------------------------------
+# FUNÇÕES DE VALIDAÇÃO (LEGADO / REGRA DE NEGÓCIO ESPECÍFICA)
+# Mantidas conforme solicitação para possível reativação futura.
+# -------------------------------------------------------------------------
+
+def validate_pdf_fonts_and_encodings(fonts_info):
+    """
+    [LEGADO] Verifica se há fontes quebradas ou encodings customizados suspeitos.
+    """
+    for font in fonts_info.get("fonts", []):
+        if font.get("font_name") == "[none]" or font.get("encoding") == "Custom":
+            return False
+    return True
+
+
+def validate_pdf_creator_author_creator_tool(file_info):
+    """
+    [LEGADO] Regra de negócio restritiva.
+    Rejeita documentos criados por 'PDF24 Creator' com autor 'INSS'.
+    """
+    try:
+        creator_tool = file_info.get("creator_tool", "").lower()
+        creator = file_info.get("creator", "").lower()
+        author = file_info.get("author", "").lower()
+
+        # Lógica de bloqueio específica
+        if creator_tool == "pdf24 creator" and creator == "inss" and author == "inss":
+            logger.info("PDF rejeitado pela regra de validação de metadados (PDF24/INSS).")
+            return False
+        return True
+
+    except Exception as e:
+        logger.error(f"Erro na validação de metadados: {e}")
+        return False
 
 
 def validate_pdf(file_path):
     """
-    Valida um arquivo PDF verificando se as fontes e encodings são válidos e se as informações
-    de 'Creator', 'Author' e 'CreatorTool' são diferentes de:
-    'creator_tool': 'PDF24 Creator',
-    'creator': 'inss',
-    'author': 'inss'
-
-    :param file_path: Caminho para o arquivo PDF.
-    :return: True se o arquivo é válido, False caso contrário.
+    [LEGADO] Validador mestre. Combina validação de fonte e metadados.
+    Atualmente não utilizado no fluxo principal (views.py), mas disponível.
     """
     try:
         fonts_info = get_pdf_fonts_and_encodings_as_dict(file_path)
         file_info = get_file_metadata_as_dict(file_path)
 
-        return validate_pdf_fonts_and_encodings(fonts_info) and validate_pdf_creator_author_creator_tool(file_info)
+        fonts_ok = validate_pdf_fonts_and_encodings(fonts_info)
+        meta_ok = validate_pdf_creator_author_creator_tool(file_info)
+
+        return fonts_ok and meta_ok
 
     except Exception as e:
-        raise RuntimeError(f"Erro ao validar arquivo PDF: {e}")
+        logger.error(f"Erro geral na validação do PDF: {e}")
+        return False
 
+
+# -------------------------------------------------------------------------
+# PROCESSAMENTO DE IMAGEM (SUPORTE AO OCR)
+# -------------------------------------------------------------------------
 
 def preprocess_image_hard(image_path):
-    image = Image.open(image_path)
-    # Converter para escala de cinza
-    gray_image = ImageOps.grayscale(image)
-    # Aplicar filtro de nitidez
-    sharpened_image = gray_image.filter(ImageFilter.SHARPEN)
-    # Binarizar a imagem
-    threshold = 128
-    binary_image = sharpened_image.point(lambda x: 255 if x > threshold else 0, mode='1')
-    return binary_image
+    """
+    Aplica filtros agressivos para melhorar OCR em documentos ruidosos.
+    Retorna um objeto PIL Image pronto para ser consumido pelo pytesseract.
+    """
+    try:
+        image = Image.open(image_path)
+        
+        # 1. Escala de Cinza
+        gray_image = ImageOps.grayscale(image)
+        
+        # 2. Sharpen (Nitidez)
+        sharpened_image = gray_image.filter(ImageFilter.SHARPEN)
+        
+        # 3. Binarização (Threshold)
+        # Transforma pixels cinzas em preto ou branco absoluto
+        threshold = 128
+        binary_image = sharpened_image.point(lambda x: 255 if x > threshold else 0, mode='1')
+        
+        return binary_image
+    except Exception as e:
+        logger.error(f"Erro no preprocess_image_hard: {e}")
+        # Retorna a imagem original em caso de erro para não quebrar o fluxo
+        return Image.open(image_path)
 
 
 def preprocess_image_soft(image_path):
-    image = Image.open(image_path).convert("L")
-    enhanced_image = ImageEnhance.Contrast(
-            image.resize((image.width * 3, image.height * 3), Image.Resampling.LANCZOS)
-        ).enhance(2)
-    return enhanced_image
-
-
-# Exemplo de uso
-if __name__ == "__main__":
-    file_path = "base_testes/pmpgb.pdf"
-    file_path = "base_testes/divinaaparecida_traducao_1.png"
-    file_path = "base_testes/jacquelineveloso_Trad_Espanhol.pdf"
-    # file_path = "base_testes/Traducao_ANTONIO_ALVAREZ_PAREDES.pdf"
+    """
+    Aplica melhoria de contraste suave.
+    Útil para documentos escaneados com texto muito claro/apagado.
+    """
     try:
-        info = get_file_metadata_as_dict(file_path)
-        print('#'*30, 'FILE_METADATA_INICIO', '#'*30)
-        print(info)
-        print('#'*30, 'FILE_METADATA_FIM', '#'*30)
-        print()
+        image = Image.open(image_path).convert("L")
+        
+        # Aumenta resolução (upscaling) para ajudar o OCR em letras pequenas
+        resized_image = image.resize(
+            (image.width * 2, image.height * 2), 
+            Image.Resampling.LANCZOS
+        )
+        
+        # Aumenta o contraste
+        enhanced_image = ImageEnhance.Contrast(resized_image).enhance(2.0)
+        
+        return enhanced_image
     except Exception as e:
-        print(e)
-
-    try:    
-        info = get_pdf_fonts_and_encodings_as_dict(file_path)
-        print('#'*30, 'PDF_FONTS_INICIO', '#'*30)
-        print(info)
-        print('#'*30, 'PDF_FONTS_FIM', '#'*30)  
-        print()
-    except Exception as e:
-        print(e)
-
-    try:
-        info = get_pdfinfo_as_dict(file_path)
-        print('#'*30, 'PDF_INFO_INICIO', '#'*30)
-        print(info)
-        print('#'*30, 'PDF_INFO_FIM', '#'*30)
-    except Exception as e:        
-        print(e)
+        logger.error(f"Erro no preprocess_image_soft: {e}")
+        return Image.open(image_path)

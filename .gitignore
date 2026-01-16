@@ -18,9 +18,6 @@ __pycache__/
 *.txt
 
 # Configurações locais e de ambiente
-.env
-*.env
-.env.*
 *.local
 settings_local.py
 

@@ -1,178 +1,170 @@
 {% extends "base.html" %}
 
+{% block title %}Contador{% endblock %}
 
-    {% block title %}Contador{% endblock %}
+{% block content %}  
+<div class="container">
+    <div class="row">
+        <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center form p-4">
+            <h3 class="">Contador de caracteres</h3>
+            <p class="text-truncate text-secondary">Selecione os idiomas contidos no documento.</p>
+            <hr>
+            <div class="px-2 text-left">
+                <form action="{% url 'counter' %}" method="post" enctype="multipart/form-data" onsubmit="handleFormSubmit(event)">
+                    {% csrf_token %}
 
-    {% block content %}  
-    <div class="container">
-        <div class="row">
-            <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center form p-4">
-                <h3 class="">Contador de caracteres</h3>
-                <p class="text-truncate text-secondary">Selecione os idiomas contidos no documento.</p>
-                <hr>
-                <div class="px-2 text-left">
-                    <form action="{% url 'counter' %}" method="post" enctype="multipart/form-data" onsubmit="handleFormSubmit(event)">
-                        {% csrf_token %}
+                    <div class="form-group">
+                        <div class="input-group">
+                            <fieldset class="form-group" >
+                                <legend class="form-label">Selecione os idiomas:</legend>
 
-                        <div class="form-group">
-                            <!-- Languages selection -->
-                            <div class="input-group">
-                                <fieldset class="form-group" >
-                                    <legend class="form-label">Selecione os idiomas:</legend>
-
-                                    {% for language in languages_list %}
-                                    
-                                        <div class="custom-control-inline custom-checkbox form-check">                                        
-                                            <input class="custom-control-input" type="checkbox" id="{{ language.id }}" name="languages" value="{{ language.id }}" 
-                                            {% if language.id == 'por' %} checked {% endif %}>
-                                            <label class="custom-control-label" for="{{ language.id }}">{{ language.name }}</label>
-                                        </div>
-
-                                    {% endfor %}
-
-                                </fieldset> 
-                            </div>
-                        
-                            <!-- File Upload -->
-                            <fieldset>
-                                <legend class="form-label">Selecione o arquivo:</legend>
-                                <div class="input-group border p-2 rounded">
-                                    <div class="custom-file ">
-                                        <!-- Input de arquivo oculto -->
-                                        <input type="file" class="custom-file-input d-none" id="uploaded_file" name="uploaded_file" required onchange="updateFileName()">
-                                        <!-- Botão personalizado que chama o input de arquivo -->
-                                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('uploaded_file').click()">Selecione</button>
-                                        <!-- Label para exibir o nome do arquivo -->
-                                        <span id="file-name" class="ml-2 text-secondary">Escolha um arquivo...</span>
+                                {% for language in languages_list %}
+                                
+                                    <div class="custom-control-inline custom-checkbox form-check">                                        
+                                        <input class="custom-control-input" type="checkbox" id="{{ language.id }}" name="languages" value="{{ language.id }}" 
+                                        {% if language.id == 'por' %} checked {% endif %}>
+                                        <label class="custom-control-label" for="{{ language.id }}">{{ language.name }}</label>
                                     </div>
-                                </div>
-                            </fieldset>
-                            
-                            <div class="d-flex justify-content-center mt-4">
-                                <button id="submitButton" class="btn btn-outline-info col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto" type="submit">Contar</button>
-                            </div>
-                            <div class="d-flex justify-content-center">
-                                <button id="spinnerButton" class="btn btn-outline-info col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto" type="button" disabled disabled style="display: none";>
-                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                    Processando...
-                                </button>
-                            </div>  
-                        </div>                   
-                    </form>
-                </div>
 
-                <div>
-                    {% if error %}
-                        <div class="alert alert-danger" role="alert">
-                            {{ message }}
+                                {% endfor %}
+
+                            </fieldset> 
                         </div>
-                    {% endif %}
-                </div>
+                    
+                        <fieldset>
+                            <legend class="form-label">Selecione o arquivo:</legend>
+                            <div class="input-group border p-2 rounded">
+                                <div class="custom-file ">
+                                    <input type="file" class="custom-file-input d-none" id="uploaded_file" name="uploaded_file" required onchange="updateFileName()">
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('uploaded_file').click()">Selecione</button>
+                                    <span id="file-name" class="ml-2 text-secondary">Escolha um arquivo...</span>
+                                </div>
+                            </div>
+                        </fieldset>
 
-                <!-- AQUI -->
-                 <hr>
-            </div>
-        </div>
-
-        <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center">
-            {% if qt_char_extracted and not error %}
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead class="table-light">
-                            <tr>
-                                <th colspan="2">Estatísticas</th>
-                            </tr>
-                        </thead>
-                        <tbody>                                   
-                            <tr>
-                                <td colspan="2">{{ file_name }}</td>
-                            </tr>
-                            <tr>
-                                <td class="text-left">Idiomas:</td>
-                                <td class="text-right">
-                                    {% for language in selected_languages %}
-                                        {{ language }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="text-left">Páginas:</td>
-                                <td class="text-right">{{ qt_pages }}</td>
-                            </tr>
-                            <tr>
-                                <td class="text-left">Imagens:</td>
-                                <td class="text-right">{{ qt_images }}</td>
-                            </tr>
-                            <tr>
-                                <td class="text-left">Palavras:</td>
-                                <td class="text-right">{{ qt_words }}</td>
-                            </tr>
-                            <tr>
-                                <td class="text-left">Caracteres <span class="text-secondary" style="font-size: small;">(com espaços)</span>:</td>
-                                <td class="text-right">{{ qt_char_extracted }}</td>
-                            </tr>
-                            <tr>
-                                <td class="text-left">Caracteres <span class="text-secondary" style="font-size: small;">(sem espaços)</span>:</td>
-                                <td class="text-right">{{ qt_char_cleaned }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            {% endif %}
-        </div>
-
-        {% if text_extracted %}
-            <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto form">
-                <form>
-                    <div class="form-group" style="color: rgb(192, 192, 192); font-weight: 500;">
-                        <label for="textoCompleto">Texto Extraído:</label>
-                        <textarea class="form-control" id="textoCompleto" rows="10" disabled>
-                            {{ text_extracted }}
-                        </textarea>
-                    </div>
+                        <fieldset class="mt-3">
+                            <legend class="form-label" style="font-size: 1rem;">Senha do PDF <span class="text-secondary" style="font-size: 0.8rem;">(Opcional)</span>:</legend>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                </div>
+                                <input type="password" class="form-control" id="password" name="password" placeholder="Digite a senha caso o PDF seja protegido">
+                            </div>
+                        </fieldset>
+                        <div class="d-flex justify-content-center mt-4">
+                            <button id="submitButton" class="btn btn-outline-info col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto" type="submit">Contar</button>
+                        </div>
+                        <div class="d-flex justify-content-center">
+                            <button id="spinnerButton" class="btn btn-outline-info col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto" type="button" disabled disabled style="display: none";>
+                                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                Processando...
+                            </button>
+                        </div>  
+                    </div>                   
                 </form>
+            </div>
+
+            <div>
+                {% if error %}
+                    <div class="alert alert-danger mt-3" role="alert">
+                        {{ message }}
+                    </div>
+                {% endif %}
+            </div>
+
+             <hr>
+        </div>
+    </div>
+
+    <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto text-center">
+        {% if qt_char_extracted and not error %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead class="table-light">
+                        <tr>
+                            <th colspan="2">Estatísticas</th>
+                        </tr>
+                    </thead>
+                    <tbody>                                   
+                        <tr>
+                            <td colspan="2">{{ file_name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Idiomas:</td>
+                            <td class="text-right">
+                                {% for language in selected_languages %}
+                                    {{ language }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Páginas:</td>
+                            <td class="text-right">{{ qt_pages }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Imagens:</td>
+                            <td class="text-right">{{ qt_images }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Palavras:</td>
+                            <td class="text-right">{{ qt_words }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Caracteres <span class="text-secondary" style="font-size: small;">(com espaços)</span>:</td>
+                            <td class="text-right">{{ qt_char_extracted }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Caracteres <span class="text-secondary" style="font-size: small;">(sem espaços)</span>:</td>
+                            <td class="text-right">{{ qt_char_cleaned }}</td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         {% endif %}
     </div>
-    <br><br>
 
-    <script>
-        function handleFormSubmit(event) {
-            // Previne o envio imediato do formulário
-            event.preventDefault();
-    
-            // Esconde o botão de submit e exibe o botão de spinner
-            document.getElementById('submitButton').style.display = 'none';
-            document.getElementById('spinnerButton').style.display = 'block';
-    
-            // Envia o formulário via JavaScript
-            const form = event.target;
-    
-            // Simulação do envio do formulário com timeout (substitua pelo envio real do formulário)
-            setTimeout(() => {
-                form.submit(); // Envia o formulário normalmente após o tempo de espera
-            }, 500); // Apenas para simular um delay
+    {% if text_extracted %}
+        <div class="col-xl-5 col-lg-6 col-md-8 col-sm-10 mx-auto form">
+            <form>
+                <div class="form-group" style="color: rgb(192, 192, 192); font-weight: 500;">
+                    <label for="textoCompleto">Texto Extraído:</label>
+                    <textarea class="form-control" id="textoCompleto" rows="10" disabled>
+                        {{ text_extracted }}
+                    </textarea>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+</div>
+<br><br>
+
+<script>
+    function handleFormSubmit(event) {
+        event.preventDefault();
+        document.getElementById('submitButton').style.display = 'none';
+        document.getElementById('spinnerButton').style.display = 'block';
+        
+        // Pequeno timeout para permitir atualização da UI antes do submit real
+        setTimeout(() => {
+            event.target.submit(); 
+        }, 100);
+    }
+
+    function updateFileName() {
+        const fileInput = document.getElementById('uploaded_file');
+        const fileNameSpan = document.getElementById('file-name');
+        const fullFileName = fileInput.files[0]?.name || 'Escolha um arquivo...';
+
+        const maxLength = 35;
+        let displayName = fullFileName;
+
+        if (fullFileName.length > maxLength) {
+            const start = fullFileName.slice(0, 20);
+            const end = fullFileName.slice(-10);
+            displayName = `${start}...${end}`;
         }
+        fileNameSpan.textContent = displayName;
+    }
+</script>
 
-        function updateFileName() {
-            const fileInput = document.getElementById('uploaded_file');
-            const fileNameSpan = document.getElementById('file-name');
-            const fullFileName = fileInput.files[0]?.name || 'Escolha um arquivo...';
-
-            // Limite de comprimento para o nome do arquivo exibido
-            const maxLength = 35;
-            let displayName = fullFileName;
-
-            // Encurta o nome do arquivo se exceder o limite
-            if (fullFileName.length > maxLength) {
-                const start = fullFileName.slice(0, 20);  // Primeiros caracteres
-                const end = fullFileName.slice(-10);       // Últimos caracteres
-                displayName = `${start}...${end}`;
-            }
-
-            // Atualiza o texto da label com o nome do arquivo (encurtado se necessário)
-            fileNameSpan.textContent = displayName;
-        }
-    </script>
-
-    {% endblock content %}
+{% endblock content %}
